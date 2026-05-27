@@ -376,7 +376,94 @@
 
     #output { display: none; }
     #output.visible { display: block; }
+
+    /* ── 上传区 ── */
+    .upload-strip {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 16px 28px;
+    }
+    .upload-zone {
+      border: 1.5px dashed var(--border);
+      border-radius: var(--radius-lg);
+      padding: 20px 24px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color .15s, background .15s;
+      background: var(--surface-2);
+    }
+    .upload-zone:hover, .upload-zone.dragover {
+      border-color: var(--accent-soft);
+      background: #f0f4f8;
+    }
+    .upload-zone.is-loading { pointer-events: none; opacity: 0.75; }
+    .upload-zone h3 {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--accent);
+      margin-bottom: 4px;
+    }
+    .upload-zone p { font-size: 12px; color: var(--text-2); }
+    .upload-zone input { display: none; }
+    .upload-status {
+      margin-top: 10px;
+      font-size: 12px;
+      color: var(--text-2);
+      min-height: 18px;
+    }
+    .upload-status.error { color: #b54a4a; }
+    .upload-status.ok { color: var(--ok); }
+    .parsed-preview {
+      margin-top: 16px;
+      padding: 14px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      font-size: 11px;
+      display: none;
+    }
+    .parsed-preview.visible { display: block; }
+    .parsed-preview h4 {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      color: var(--text-2);
+      margin-bottom: 10px;
+      text-transform: uppercase;
+    }
+    .parsed-row {
+      display: grid;
+      grid-template-columns: 56px 1fr;
+      gap: 4px 8px;
+      margin-bottom: 6px;
+      line-height: 1.45;
+    }
+    .parsed-row dt { color: var(--text-2); }
+    .parsed-row dd { color: var(--text); word-break: break-word; }
+    .upload-skeleton {
+      display: none;
+      margin-top: 12px;
+      height: 4px;
+      border-radius: 2px;
+      background: var(--border);
+      overflow: hidden;
+    }
+    .upload-skeleton.visible { display: block; }
+    .upload-skeleton span {
+      display: block;
+      height: 100%;
+      width: 40%;
+      background: var(--accent-soft);
+      border-radius: 2px;
+      animation: upload-slide 1.2s ease-in-out infinite;
+    }
+    @keyframes upload-slide {
+      0% { transform: translateX(-100%); }
+      100% { transform: translateX(350%); }
+    }
   </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
 </head>
 <body>
   <div class="app-shell">
@@ -413,13 +500,27 @@
       <button type="button" class="btn-generate" id="generateBtn">生成 Prompt</button>
     </header>
 
+    <section class="upload-strip">
+      <div class="upload-zone" id="uploadZone">
+        <input type="file" id="fileInput" accept=".pdf,.docx,.doc,.txt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain" />
+        <h3>上传旅行资料</h3>
+        <p>支持 PDF · Word (.docx) · TXT · 拖拽或点击上传 · 本地解析不上传服务器</p>
+        <div class="upload-skeleton" id="uploadSkeleton"><span></span></div>
+        <p class="upload-status" id="uploadStatus"></p>
+      </div>
+    </section>
+
     <div class="workspace">
       <aside class="panel-left">
         <div class="input-area">
           <div class="section-label">产品资料</div>
           <textarea id="sourceText" placeholder="粘贴旅游产品资料…&#10;产品名、行程、卖点、酒店、天数等"></textarea>
           <p id="emptyTip" class="empty-tip">请先粘贴资料</p>
-          <p class="input-hint">PDF 提取文字后粘贴 · 本地运行 · 不上传服务器</p>
+          <p class="input-hint">也可直接上传 PDF / Word / TXT，或手动粘贴编辑</p>
+          <div class="parsed-preview" id="parsedPreview">
+            <h4>解析结果</h4>
+            <dl id="parsedFields"></dl>
+          </div>
           <div class="core-chip" id="coreChips"></div>
           <div style="margin-top:14px">
             <button type="button" class="btn-ghost" id="clearBtn">清空</button>
@@ -436,14 +537,14 @@
       <main class="panel-right">
         <div id="placeholder" class="preview-empty">
           <div class="icon">◇</div>
-          <p>粘贴资料并点击「生成 Prompt」<br />右侧将展示 4 张母版卡片预览</p>
+          <p>上传资料或粘贴文字后生成<br />右侧将展示 6 张母版长图 Prompt</p>
         </div>
 
         <div id="output">
           <div class="preview-header">
             <div>
               <h2>Prompt 卡片</h2>
-              <p id="outputMeta">母版驱动 · 4 卡自动组合</p>
+              <p id="outputMeta">母版驱动 · 6 张长图自动组合</p>
             </div>
             <div class="toolbar-btns">
               <button type="button" class="btn-outline" id="copyAllJsonBtn">复制全部 JSON</button>
@@ -570,19 +671,23 @@
       landscape: { label: "横版 16:9", aspect: "16 / 9", ratioText: "16:9", platform: "横版", hint: "Banner / 封面横图" },
     };
 
-    /** ── 四张卡片类型 ── */
+    /** ── 六张长图卡片 ── */
     const CARDS = [
       { id: "01", type: "cover", label: "封面图" },
-      { id: "02", type: "detail", label: "详情图" },
-      { id: "03", type: "route", label: "行程图" },
-      { id: "04", type: "emotion", label: "情绪海报" },
+      { id: "02", type: "route", label: "行程路线" },
+      { id: "03", type: "selling", label: "卖点解析" },
+      { id: "04", type: "hotel", label: "酒店/住宿" },
+      { id: "05", type: "emotion", label: "情绪氛围" },
+      { id: "06", type: "ending", label: "收尾海报" },
     ];
 
     const VISUAL_GRADIENTS = {
       cover: "linear-gradient(155deg, #2c4a6e 0%, #7a9bb8 50%, #f0ebe3 100%)",
-      detail: "linear-gradient(160deg, #5c5048 0%, #b8a088 55%, #f5f0e8 100%)",
       route: "linear-gradient(165deg, #4a5c4a 0%, #98a898 50%, #ebe8e0 100%)",
+      selling: "linear-gradient(160deg, #5c5048 0%, #b8a088 55%, #f5f0e8 100%)",
+      hotel: "linear-gradient(155deg, #4a5568 0%, #9ca8b8 50%, #f5f0e8 100%)",
       emotion: "linear-gradient(145deg, #6b4840 0%, #c4907a 45%, #faf6f0 100%)",
+      ending: "linear-gradient(150deg, #2c4a6e 0%, #7a9bb8 50%, #faf8f4 100%)",
     };
 
     const byId = (id) => document.getElementById(id);
@@ -636,31 +741,103 @@
       return lines(text).filter((l) => /^[\-\•\*·✓✔]|^\d+[\.\、]/.test(l));
     }
 
+    function extractCities(text) {
+      const set = new Set();
+      const labeled = text.match(/(?:目的地|城市|前往|游览|途经)[：:\s]*([^\n。]{2,48})/gi) || [];
+      labeled.forEach((seg) => {
+        seg.replace(/^[^：:]+[：:\s]*/i, "").split(/[、，,\/|→\s]+/).forEach((p) => {
+          const t = p.trim();
+          if (t.length >= 2 && t.length <= 12) set.add(t);
+        });
+      });
+      (text.match(/[\u4e00-\u9fa5]{2,8}(?:\/[\u4e00-\u9fa5]{2,8}){0,2}/g) || []).forEach((c) => {
+        if (/岛|城|湾|山|湖|寺|古镇|市|县|国|公园|公路|高原|沙漠/.test(c)) set.add(c);
+      });
+      return [...set].slice(0, 8);
+    }
+
+    function extractAttractions(text) {
+      const found = [];
+      lines(text).forEach((l) => {
+        if (/景点|景区|寺|博物馆|公园|海滩|瀑布|古城|老街|广场|塔|湖|山|谷|湾|岛|打卡|参观/.test(l) && l.length < 72) {
+          found.push(l.replace(/^[\s\-•*\d.、）)]+/, "").trim());
+        }
+      });
+      const block = extractBlock(text, ["景点", "景区", "打卡", "参观", "游览景点"], /^(酒店|费用|住宿|第\s*\d+\s*天)/);
+      if (block) return block;
+      return found.slice(0, 10).join("\n");
+    }
+
     function parseSource(text) {
       const raw = normalize(text);
-      const title = firstMatch(raw, [/产品名称|线路名称|产品[：:]/, /^【.+】$/, /日游/])
-        ?.replace(/^(产品名称|线路名称|产品)[：:]\s*/i, "")
-        || lines(raw).find((l) => l.length >= 4 && l.length <= 42) || "精选旅行产品";
+      const title = firstMatch(raw, [/产品名称|线路名称|行程名称|产品[：:]/, /^【.+】$/, /日游|自由行|跟团/])
+        ?.replace(/^(产品名称|线路名称|行程名称|产品)[：:]\s*/i, "")
+        || lines(raw).find((l) => l.length >= 4 && l.length <= 42 && !/^第\s*\d/.test(l)) || "精选旅行产品";
+
+      const cities = extractCities(raw);
       const destM = raw.match(/(?:目的地|前往)[：:\s]*([^\n，,。]{2,24})/);
-      const destination = destM?.[1]?.trim()
-        || (raw.match(/[\u4e00-\u9fa5]{2,12}(?:\/[\u4e00-\u9fa5]{2,12})?/g) || [])
-          .find((c) => /岛|城|湾|山|湖|寺|古镇/.test(c))
-        || "目的地";
+      const destination = destM?.[1]?.trim() || cities[0] || "目的地";
+      const citiesText = cities.length ? cities.join(" · ") : destination;
+
       const dm = raw.match(/(\d+)\s*天\s*(\d+)\s*晚/);
-      const duration = dm ? `${dm[1]}天${dm[2]}晚` : (raw.match(/(\d+)\s*日游/)?.[1] + "日游") || "多日行程";
+      const dOnly = raw.match(/(\d+)\s*日游/);
+      const duration = dm ? `${dm[1]}天${dm[2]}晚` : dOnly ? `${dOnly[1]}日游` : firstMatch(raw, [/行程天数|天数/]) || "多日行程";
+
       const days = extractDays(raw);
-      const route = extractBlock(raw, ["行程路线", "线路概览", "路线"], /^(第\s*\d+\s*天|费用)/)
-        || (days.length ? days.map((d) => d.replace(/^第\s*\d+\s*天[：:\s]*/i, "")).join(" → ") : `${destination} 经典动线`);
-      const itinerary = days.length ? days.join("\n") : extractBlock(raw, ["每日行程", "行程安排"], /^(费用|酒店)/) || lines(raw).slice(0, 8).join("\n");
-      const selling = extractBlock(raw, ["亮点", "卖点", "特色", "产品优势"], /^(行程|酒店)/)
-        || extractBullets(raw).slice(0, 5).join("\n") || "精选体验 · 深度玩法 · 省心服务";
-      const hotel = extractBlock(raw, ["酒店", "住宿", "下榻"], /^(行程|费用)/)
-        || lines(raw).filter((l) => /酒店|度假村|民宿/.test(l)).slice(0, 4).join("\n") || "精选品质酒店";
-      const emotionSnip = lines(raw).filter((l) => /浪漫|治愈|秘境|慢生活/.test(l)).slice(0, 2);
+      const attractions = extractAttractions(raw);
+      const route = extractBlock(raw, ["行程路线", "线路概览", "路线", "行程概览"], /^(第\s*\d+\s*天|费用|酒店)/)
+        || (days.length ? days.map((d) => d.replace(/^第\s*\d+\s*天[：:\s]*/i, "")).join(" → ") : `${citiesText} 经典动线`);
+      const itinerary = days.length ? days.join("\n") : extractBlock(raw, ["每日行程", "行程安排", "详细行程"], /^(费用|酒店|亮点)/) || lines(raw).slice(0, 10).join("\n");
+
+      const selling = extractBlock(raw, ["亮点", "卖点", "特色", "产品优势", "推荐理由", "核心体验"], /^(行程|第\s*\d+\s*天|酒店|费用)/)
+        || extractBullets(raw).filter((l) => /亮点|特色|含|赠|独家|纯玩|升级/.test(l)).slice(0, 6).join("\n")
+        || "精选体验 · 深度玩法 · 省心服务";
+
+      const hotel = extractBlock(raw, ["酒店", "住宿", "入住酒店", "下榻", "房型", "住宿标准"], /^(行程|费用不含|亮点|第\s*\d+\s*天)/)
+        || lines(raw).filter((l) => /酒店|度假村|民宿|客栈|五星|四星/.test(l)).slice(0, 6).join("\n")
+        || "精选当地品质酒店或同级（以资料为准）";
+
+      const emotionSnip = lines(raw).filter((l) => /浪漫|治愈|秘境|慢生活|奢华|逃离|难忘|值得|私密/.test(l)).slice(0, 3);
       const emotion = emotionSnip.length
-        ? emotionSnip.join("\n") + `\n${destination}：慢节奏、私密感。慢下来，才算真正抵达。`
+        ? emotionSnip.join("\n") + `\n\n${destination}：慢节奏、私密感。慢下来，才算真正抵达。`
         : `${destination}：慢节奏、私密感、真实旅行氛围。`;
-      return { raw, title, destination, duration, route, itinerary, selling, hotel, emotion };
+
+      const ending = `「${title}」收束${destination}之旅。金句：值得收藏，值得再次出发。底部「档期咨询」占位。`;
+
+      return {
+        raw,
+        title,
+        destination,
+        cities,
+        citiesText,
+        duration,
+        route,
+        itinerary,
+        attractions,
+        selling,
+        hotel,
+        emotion,
+        ending,
+      };
+    }
+
+    function renderParsedPreview(ctx) {
+      const box = byId("parsedPreview");
+      const dl = byId("parsedFields");
+      const rows = [
+        ["标题", ctx.title],
+        ["行程天数", ctx.duration],
+        ["城市", ctx.citiesText],
+        ["景点", oneLine(ctx.attractions, 120) || "—"],
+        ["酒店", oneLine(ctx.hotel, 100) || "—"],
+        ["卖点", oneLine(ctx.selling, 100) || "—"],
+        ["情绪", oneLine(ctx.emotion, 100) || "—"],
+      ];
+      dl.innerHTML = rows.map(([k, v]) => `<div class="parsed-row"><dt>${k}</dt><dd></dd></div>`).join("");
+      dl.querySelectorAll(".parsed-row").forEach((row, i) => {
+        row.querySelector("dd").textContent = rows[i][1];
+      });
+      box.classList.add("visible");
     }
 
     /** ── 母版核心：所有卡片共享的视觉 DNA ── */
@@ -693,28 +870,38 @@
       cover(ctx) {
         return {
           title: ctx.title,
-          subtitle: `${ctx.duration} · ${ctx.destination}`,
+          subtitle: `${ctx.duration} · ${ctx.citiesText || ctx.destination}`,
           layoutExtra: "首屏杂志封面感。主标题左上，副标题其下，摄影占 55%，底部留白。",
           scene: `${ctx.destination}地标或自然风光大片，人物背影或剪影，自然光无滤镜。`,
-          bodyNote: "首屏传达线路气质，不虚构价格。",
-        };
-      },
-      detail(ctx) {
-        return {
-          title: "产品详情",
-          subtitle: ctx.title,
-          layoutExtra: "卖点+酒店+服务纵向分块，细线分隔，右侧留白，适合滑动阅读。",
-          scene: "美食/风景/酒店真实小图拼贴，统一低饱和裁切。",
-          bodyNote: trimText(`【卖点】\n${ctx.selling}\n\n【住宿】\n${ctx.hotel}`, 400),
+          bodyNote: `城市：${ctx.citiesText}\n首屏传达线路气质，不虚构价格。`,
         };
       },
       route(ctx) {
+        const attr = ctx.attractions ? `\n【景点】\n${ctx.attractions}` : "";
         return {
           title: "行程路线",
           subtitle: `${ctx.title} · ${ctx.duration}`,
           layoutExtra: "纵向时间轴/路线图，Day 标签+要点，块间留白。",
-          scene: "简约路线示意+各站真实摄影，站点名深灰小字。",
-          bodyNote: trimText(`${ctx.route}\n\n${ctx.itinerary}`, 400),
+          scene: `简约路线示意+${ctx.destination}各站真实摄影，站点名深灰小字。`,
+          bodyNote: trimText(`${ctx.route}\n\n${ctx.itinerary}${attr}`, 450),
+        };
+      },
+      selling(ctx) {
+        return {
+          title: "为什么选这条线",
+          subtitle: "核心卖点解析",
+          layoutExtra: "3–5 条纵向列表，细线分隔，右侧留白，杂志专题排版。",
+          scene: "每条卖点配美食/风景/体验真实小图，统一低饱和裁切。",
+          bodyNote: trimText(ctx.selling, 400),
+        };
+      },
+      hotel(ctx) {
+        return {
+          title: "住宿体验",
+          subtitle: `${ctx.destination} · 下榻之选`,
+          layoutExtra: "酒店信息左对齐，主图占画面一半，星级用小号深灰字。",
+          scene: "酒店外观或客房真实摄影，清晨柔光或夜景，高端度假酒店气质。",
+          bodyNote: trimText(ctx.hotel, 400),
         };
       },
       emotion(ctx) {
@@ -723,7 +910,16 @@
           subtitle: "慢下来，才算抵达",
           layoutExtra: "全屏氛围摄影，文案 1–2 行置左下，其余大量留空。",
           scene: `${ctx.destination}日落/海面/山野，大面积天空留白，可选单人剪影。`,
-          bodyNote: trimText(ctx.emotion, 260),
+          bodyNote: trimText(ctx.emotion, 280),
+        };
+      },
+      ending(ctx) {
+        return {
+          title: "写在最后",
+          subtitle: ctx.title,
+          layoutExtra: "收束金句左对齐+底部咨询占位，上下大量留白，杂志尾页。",
+          scene: `与封面呼应的${ctx.destination}氛围图，远景略虚化，色调略暖。`,
+          bodyNote: trimText(ctx.ending, 280),
         };
       },
     };
@@ -827,7 +1023,7 @@
 
     function exportAll(modules, options) {
       return {
-        version: "5.0",
+        version: "5.1",
         generatedAt: new Date().toISOString(),
         promptCore: PROMPT_CORE.toObject(),
         options: {
@@ -1005,26 +1201,133 @@
 
     function esc(s) { const d = document.createElement("div"); d.textContent = s; return d.innerHTML; }
 
-    function generate() {
+    /* ── 文件解析：PDF.js + mammoth.js（纯前端） ── */
+    function setUploadUI(state, message) {
+      const zone = byId("uploadZone");
+      const status = byId("uploadStatus");
+      const skel = byId("uploadSkeleton");
+      zone.classList.toggle("is-loading", state === "generating");
+      skel.classList.toggle("visible", state === "generating");
+      status.className = "upload-status" + (state === "error" ? " error" : state === "success" ? " ok" : "");
+      status.textContent = message || "";
+    }
+
+    function getFileKind(file) {
+      const name = (file.name || "").toLowerCase();
+      if (name.endsWith(".pdf") || file.type === "application/pdf") return "pdf";
+      if (name.endsWith(".docx") || file.type.includes("wordprocessingml")) return "docx";
+      if (name.endsWith(".txt") || file.type === "text/plain") return "txt";
+      if (name.endsWith(".doc")) return "doc";
+      return null;
+    }
+
+    async function extractTextFromPdf(file) {
+      if (typeof pdfjsLib === "undefined") throw new Error("PDF.js 未加载，请检查网络");
+      pdfjsLib.GlobalWorkerOptions.workerSrc =
+        "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+      const buf = await file.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+      const parts = [];
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const content = await page.getTextContent();
+        const pageText = content.items.map((it) => it.str).join(" ");
+        parts.push(pageText);
+      }
+      return parts.join("\n\n");
+    }
+
+    async function extractTextFromDocx(file) {
+      if (typeof mammoth === "undefined") throw new Error("mammoth.js 未加载，请检查网络");
+      const buf = await file.arrayBuffer();
+      const result = await mammoth.extractRawText({ arrayBuffer: buf });
+      return result.value || "";
+    }
+
+    async function extractTextFromFile(file) {
+      const kind = getFileKind(file);
+      if (!kind) throw new Error("仅支持 PDF、DOCX、TXT 文件");
+      if (kind === "doc") throw new Error("旧版 .doc 请另存为 .docx 后上传");
+      if (kind === "txt") return file.text();
+      if (kind === "pdf") return extractTextFromPdf(file);
+      return extractTextFromDocx(file);
+    }
+
+    async function handleUploadedFile(file) {
+      if (!file) return;
+      setUploadUI("generating", `正在解析：${file.name}…`);
+      try {
+        const text = normalize(await extractTextFromFile(file));
+        if (!text || text.length < 10) throw new Error("未能提取到有效文字，请换文件或改用手动粘贴");
+        byId("sourceText").value = text;
+        byId("emptyTip").classList.remove("show");
+        const ctx = parseSource(text);
+        renderParsedPreview(ctx);
+        setUploadUI("generating", "解析完成，正在生成 6 张长图 Prompt…");
+        const options = getOptions();
+        renderCards(buildAllCards(ctx, options), options, true);
+        setUploadUI("success", `✓ ${file.name} · 已提取 ${text.length} 字 · 已生成 6 张 Prompt`);
+      } catch (err) {
+        setUploadUI("error", err.message || "解析失败");
+      }
+    }
+
+    function initUpload() {
+      const zone = byId("uploadZone");
+      const input = byId("fileInput");
+      zone.addEventListener("click", () => input.click());
+      input.addEventListener("change", () => {
+        const f = input.files?.[0];
+        if (f) handleUploadedFile(f);
+        input.value = "";
+      });
+      ["dragenter", "dragover"].forEach((ev) => {
+        zone.addEventListener(ev, (e) => {
+          e.preventDefault();
+          zone.classList.add("dragover");
+        });
+      });
+      ["dragleave", "drop"].forEach((ev) => {
+        zone.addEventListener(ev, (e) => {
+          e.preventDefault();
+          zone.classList.remove("dragover");
+        });
+      });
+      zone.addEventListener("drop", (e) => {
+        const f = e.dataTransfer?.files?.[0];
+        if (f) handleUploadedFile(f);
+      });
+    }
+
+    function generateFromText() {
       const text = byId("sourceText").value;
       const tip = byId("emptyTip");
       if (!normalize(text)) { tip.classList.add("show"); return; }
       tip.classList.remove("show");
+      const ctx = parseSource(text);
+      renderParsedPreview(ctx);
       const options = getOptions();
-      renderCards(buildAllCards(parseSource(text), options), options, true);
+      renderCards(buildAllCards(ctx, options), options, true);
+    }
+
+    function generate() {
+      generateFromText();
     }
 
     byId("generateBtn").addEventListener("click", generate);
     byId("clearBtn").addEventListener("click", () => {
       byId("sourceText").value = "";
       byId("emptyTip").classList.remove("show");
+      byId("parsedPreview").classList.remove("visible");
       byId("output").classList.remove("visible");
       byId("cardGrid").innerHTML = "";
       byId("placeholder").style.display = "flex";
+      setUploadUI("", "");
     });
 
     renderCoreChips();
     renderHistory();
+    initUpload();
   </script>
 </body>
 </html>
