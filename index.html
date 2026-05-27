@@ -1,174 +1,1030 @@
 <!doctype html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Travel Prompt Studio</title>
+  <title>旅图造物 Prompt Studio</title>
   <style>
     :root {
-      font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
-      color: #102a43;
-      background: #f0f4f8;
+      font-family: "Inter", "PingFang SC", "Noto Sans SC", system-ui, sans-serif;
+      --bg: #f7f6f3;
+      --surface: #ffffff;
+      --surface-2: #fafaf9;
+      --border: #e8e6e1;
+      --text: #1c1c1a;
+      --text-2: #6b6b66;
+      --accent: #1a2f4a;
+      --accent-soft: #3d5a80;
+      --ok: #2d6a4f;
+      --radius: 14px;
+      --radius-lg: 20px;
+      --shadow: 0 1px 2px rgba(0,0,0,.04), 0 8px 32px rgba(26,47,74,.06);
     }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      margin: 0;
       min-height: 100vh;
-      display: grid;
-      place-items: center;
-      padding: 24px;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 14px;
+      line-height: 1.6;
     }
-    .app {
-      width: min(900px, 100%);
-      background: #fff;
-      border-radius: 16px;
-      box-shadow: 0 14px 30px rgba(16, 42, 67, 0.12);
-      padding: 24px;
+
+    /* ── Top bar ── */
+    .app-shell { display: flex; flex-direction: column; min-height: 100vh; }
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(247,246,243,.92);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: 14px 28px;
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      flex-wrap: wrap;
     }
-    h1 { margin-top: 0; }
-    .grid {
+    .brand {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--accent);
+      letter-spacing: -0.02em;
+      white-space: nowrap;
+    }
+    .brand span { font-weight: 400; color: var(--text-2); margin-left: 6px; font-size: 12px; }
+    .topbar-controls {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex: 1;
+      flex-wrap: wrap;
+    }
+    .pill-select {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 4px 12px 4px 10px;
+    }
+    .pill-select label {
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text-2);
+      letter-spacing: 0.04em;
+      white-space: nowrap;
+    }
+    .pill-select select {
+      border: none;
+      background: transparent;
+      font: inherit;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text);
+      cursor: pointer;
+      outline: none;
+      padding: 4px 0;
+    }
+    .btn-generate {
+      padding: 10px 22px;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 999px;
+      font: inherit;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background .15s;
+    }
+    .btn-generate:hover { background: var(--accent-soft); }
+
+    /* ── Main split ── */
+    .workspace {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      grid-template-columns: minmax(300px, 380px) 1fr;
+      flex: 1;
+      gap: 0;
+      min-height: calc(100vh - 60px);
+    }
+    @media (max-width: 900px) {
+      .workspace { grid-template-columns: 1fr; }
+    }
+
+    /* ── Left panel ── */
+    .panel-left {
+      border-right: 1px solid var(--border);
+      padding: 32px 28px 48px;
+      display: flex;
+      flex-direction: column;
+      gap: 28px;
+      background: var(--surface-2);
+    }
+    .section-label {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--text-2);
+      margin-bottom: 10px;
+    }
+    .input-area textarea {
+      width: 100%;
+      min-height: 200px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+      font: inherit;
+      font-size: 14px;
+      line-height: 1.75;
+      resize: vertical;
+      background: var(--surface);
+      color: var(--text);
+      transition: border-color .15s, box-shadow .15s;
+    }
+    .input-area textarea:focus {
+      outline: none;
+      border-color: var(--accent-soft);
+      box-shadow: 0 0 0 3px rgba(61,90,128,.1);
+    }
+    .input-area textarea::placeholder { color: #b0aea8; }
+    .input-hint { font-size: 12px; color: var(--text-2); margin-top: 8px; }
+    .empty-tip { font-size: 12px; color: #b54a4a; margin-top: 6px; display: none; }
+    .empty-tip.show { display: block; }
+    .core-chip {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 12px;
+    }
+    .core-chip span {
+      font-size: 11px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text-2);
+    }
+    .btn-ghost {
+      padding: 8px 16px;
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      font: inherit;
+      font-size: 12px;
+      color: var(--text-2);
+      cursor: pointer;
+    }
+    .btn-ghost:hover { border-color: var(--accent-soft); color: var(--text); }
+    .history-block { margin-top: auto; }
+    .history-list { display: flex; flex-direction: column; gap: 6px; max-height: 160px; overflow-y: auto; }
+    .history-item {
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      font-size: 12px;
+      cursor: pointer;
+      text-align: left;
+      width: 100%;
+      font: inherit;
+      color: var(--text);
+    }
+    .history-item:hover { border-color: var(--accent-soft); }
+    .history-item .hi-title { display: block; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .history-item .hi-meta { color: var(--text-2); font-size: 11px; margin-top: 2px; }
+    .history-empty { font-size: 12px; color: var(--text-2); }
+
+    /* ── Right panel ── */
+    .panel-right {
+      padding: 32px 36px 64px;
+      overflow-y: auto;
+    }
+    .preview-empty {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 400px;
+      color: var(--text-2);
+      text-align: center;
       gap: 12px;
     }
-    label { font-size: 0.9rem; font-weight: 600; display: block; margin-bottom: 6px; }
-    input, select, textarea {
-      width: 100%;
-      border: 1px solid #bcccdc;
-      border-radius: 10px;
-      padding: 10px;
-      font: inherit;
-      box-sizing: border-box;
-    }
-    textarea { min-height: 125px; resize: vertical; }
-    .actions { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
-    button {
-      border: none;
-      border-radius: 10px;
-      padding: 10px 14px;
-      font-weight: 700;
-      cursor: pointer;
-      color: #fff;
-      background: #0f609b;
-    }
-    button.secondary { background: #627d98; }
-    .output {
-      margin-top: 16px;
-      background: #f7fafc;
-      border: 1px solid #d9e2ec;
+    .preview-empty .icon {
+      width: 48px;
+      height: 48px;
       border-radius: 12px;
-      padding: 14px;
-      white-space: pre-wrap;
-      line-height: 1.5;
+      border: 1px dashed var(--border);
+      display: grid;
+      place-items: center;
+      font-size: 20px;
+      opacity: .5;
     }
+    .preview-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+    }
+    .preview-header h2 {
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      color: var(--accent);
+    }
+    .preview-header p { font-size: 12px; color: var(--text-2); margin-top: 2px; }
+    .toolbar-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+    .btn-outline {
+      padding: 8px 14px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      font: inherit;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text);
+      cursor: pointer;
+    }
+    .btn-outline:hover { border-color: var(--accent-soft); }
+    .btn-outline.done { color: var(--ok); border-color: #a8d5b5; }
+
+    /* ── Cards ── */
+    .card-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 20px;
+    }
+    .prompt-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      box-shadow: var(--shadow);
+      display: flex;
+      flex-direction: column;
+    }
+    .card-visual {
+      position: relative;
+      background: linear-gradient(165deg, #f0ebe3, #e8e4dc);
+      overflow: hidden;
+    }
+    .card-visual-inner {
+      padding: 24px 20px;
+      display: flex;
+      flex-direction: column;
+      min-height: 180px;
+    }
+    .card-badge {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.14em;
+      color: var(--text-2);
+      margin-bottom: 12px;
+    }
+    .card-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--accent);
+      line-height: 1.25;
+      letter-spacing: -0.02em;
+      margin-bottom: 6px;
+    }
+    .card-sub {
+      font-size: 12px;
+      color: var(--accent-soft);
+      margin-bottom: 16px;
+    }
+    .card-scene-preview {
+      font-size: 11px;
+      line-height: 1.6;
+      color: var(--text-2);
+      flex: 1;
+      display: -webkit-box;
+      -webkit-line-clamp: 4;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .card-body { padding: 16px 18px 18px; flex: 1; display: flex; flex-direction: column; gap: 12px; }
+    .output-tabs {
+      display: flex;
+      gap: 4px;
+      background: var(--bg);
+      border-radius: 10px;
+      padding: 3px;
+    }
+    .tab-btn {
+      flex: 1;
+      padding: 6px 8px;
+      border: none;
+      background: transparent;
+      border-radius: 8px;
+      font: inherit;
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text-2);
+      cursor: pointer;
+      transition: background .12s, color .12s;
+    }
+    .tab-btn.active { background: var(--surface); color: var(--text); box-shadow: 0 1px 3px rgba(0,0,0,.06); }
+    .output-pane {
+      display: none;
+      font-size: 12px;
+      line-height: 1.65;
+      color: var(--text);
+      white-space: pre-wrap;
+      word-break: break-word;
+      max-height: 200px;
+      overflow-y: auto;
+      padding: 12px;
+      background: var(--surface-2);
+      border-radius: 10px;
+      border: 1px solid var(--border);
+    }
+    .output-pane.active { display: block; }
+    .output-pane.json-pane {
+      font-family: "SF Mono", "Cascadia Code", Consolas, monospace;
+      font-size: 11px;
+      background: #1e2f3e;
+      color: #c8d8e8;
+      border-color: #2a3f52;
+    }
+    .card-actions {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-top: auto;
+    }
+    .btn-sm {
+      padding: 6px 12px;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      background: var(--surface);
+      font: inherit;
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text);
+      cursor: pointer;
+    }
+    .btn-sm:hover { border-color: var(--accent-soft); }
+    .btn-sm.done { color: var(--ok); border-color: #a8d5b5; }
+    .btn-sm.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .btn-sm.primary:hover { background: var(--accent-soft); }
+
+    #output { display: none; }
+    #output.visible { display: block; }
   </style>
 </head>
 <body>
-  <main class="app">
-    <h1>Travel Prompt Studio</h1>
-    <p>Create detailed prompts for AI trip planning, itinerary building, and destination research.</p>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand">旅图造物 <span>Prompt Engine V5</span></div>
+      <div class="topbar-controls">
+        <div class="pill-select">
+          <label>风格</label>
+          <select id="styleSelect">
+            <option value="kinfolk">Kinfolk</option>
+            <option value="aman">Aman</option>
+            <option value="wallpaper">Wallpaper</option>
+            <option value="blend" selected>杂志混合</option>
+          </select>
+        </div>
+        <div class="pill-select">
+          <label>平台比例</label>
+          <select id="ratioSelect">
+            <option value="xhs" selected>小红书 3:4</option>
+            <option value="moments">朋友圈 2:3</option>
+            <option value="douyin">抖音 9:16</option>
+            <option value="landscape">横版 16:9</option>
+          </select>
+        </div>
+        <div class="pill-select">
+          <label>风格强度</label>
+          <select id="strengthSelect">
+            <option value="light">轻度</option>
+            <option value="medium" selected>中度</option>
+            <option value="heavy">重度</option>
+          </select>
+        </div>
+      </div>
+      <button type="button" class="btn-generate" id="generateBtn">生成 Prompt</button>
+    </header>
 
-    <div class="grid">
-      <div>
-        <label for="destination">Destination</label>
-        <input id="destination" placeholder="e.g., Kyoto, Japan" />
-      </div>
-      <div>
-        <label for="duration">Trip Duration</label>
-        <input id="duration" placeholder="e.g., 7 days" />
-      </div>
-      <div>
-        <label for="travelers">Travelers</label>
-        <input id="travelers" placeholder="e.g., couple in their 30s" />
-      </div>
-      <div>
-        <label for="budget">Budget Level</label>
-        <select id="budget">
-          <option>Budget</option>
-          <option selected>Mid-range</option>
-          <option>Luxury</option>
-        </select>
-      </div>
-      <div>
-        <label for="style">Travel Style</label>
-        <select id="style">
-          <option selected>Cultural</option>
-          <option>Adventure</option>
-          <option>Relaxed</option>
-          <option>Food-focused</option>
-          <option>Family-friendly</option>
-          <option>Mixed</option>
-        </select>
-      </div>
-      <div>
-        <label for="season">Season / Dates</label>
-        <input id="season" placeholder="e.g., October shoulder season" />
-      </div>
+    <div class="workspace">
+      <aside class="panel-left">
+        <div class="input-area">
+          <div class="section-label">产品资料</div>
+          <textarea id="sourceText" placeholder="粘贴旅游产品资料…&#10;产品名、行程、卖点、酒店、天数等"></textarea>
+          <p id="emptyTip" class="empty-tip">请先粘贴资料</p>
+          <p class="input-hint">PDF 提取文字后粘贴 · 本地运行 · 不上传服务器</p>
+          <div class="core-chip" id="coreChips"></div>
+          <div style="margin-top:14px">
+            <button type="button" class="btn-ghost" id="clearBtn">清空</button>
+          </div>
+        </div>
+        <div class="history-block">
+          <div class="section-label">历史记录</div>
+          <div class="history-list" id="historyList">
+            <p class="history-empty">生成后自动保存</p>
+          </div>
+        </div>
+      </aside>
+
+      <main class="panel-right">
+        <div id="placeholder" class="preview-empty">
+          <div class="icon">◇</div>
+          <p>粘贴资料并点击「生成 Prompt」<br />右侧将展示 4 张母版卡片预览</p>
+        </div>
+
+        <div id="output">
+          <div class="preview-header">
+            <div>
+              <h2>Prompt 卡片</h2>
+              <p id="outputMeta">母版驱动 · 4 卡自动组合</p>
+            </div>
+            <div class="toolbar-btns">
+              <button type="button" class="btn-outline" id="copyAllJsonBtn">复制全部 JSON</button>
+              <button type="button" class="btn-outline" id="copyAllBtn">复制全部可读</button>
+            </div>
+          </div>
+          <div class="card-grid" id="cardGrid"></div>
+        </div>
+      </main>
     </div>
-
-    <div style="margin-top:12px;">
-      <label for="mustSee">Must-see spots or interests</label>
-      <textarea id="mustSee" placeholder="e.g., temples, hidden cafes, day trip to Nara"></textarea>
-    </div>
-
-    <div class="actions">
-      <button id="generateBtn">Generate Prompt</button>
-      <button class="secondary" id="copyBtn">Copy</button>
-      <button class="secondary" id="clearBtn">Clear</button>
-    </div>
-
-    <div id="output" class="output">Your generated prompt will appear here.</div>
-  </main>
+  </div>
 
   <script>
+    /* ═══════════════════════════════════════════════════════════
+       Prompt 母版系统 V5
+       所有卡片基于统一 PROMPT_CORE 自动组合
+       ═══════════════════════════════════════════════════════════ */
+
+    const HISTORY_KEY = "lvtuzhaowu_prompt_v5";
+    const HISTORY_MAX = 20;
+
+    /** ── PROMPT_CORE：全局母版常量 ── */
+    const PROMPT_CORE = {
+      aesthetic: "高端旅行杂志风",
+      references: "Kinfolk / Aman / Wallpaper",
+      texture: "米白纸张肌理",
+      photographyBase: "真实摄影，低饱和，真实镜头感",
+      layoutBase: "左对齐，大量留白",
+      typographyBase: "现代无衬线字体",
+      lightingBase: "电影感自然光",
+      atmosphereBase: "精致克制，私密高级，杂志叙事感",
+      negatives: [
+        "电商风", "廉价旅游海报", "复杂图标", "AI塑料感",
+        "广告感", "低价团感", "大红大黄", "复杂描边", "卡通感",
+      ],
+      negativePrompt() {
+        return "不要：" + this.negatives.join("、");
+      },
+      toObject() {
+        return {
+          aesthetic: this.aesthetic,
+          references: this.references,
+          texture: this.texture,
+          photographyBase: this.photographyBase,
+          layoutBase: this.layoutBase,
+          typographyBase: this.typographyBase,
+          lightingBase: this.lightingBase,
+          atmosphereBase: this.atmosphereBase,
+          negatives: [...this.negatives],
+        };
+      },
+    };
+
+    /** ── 风格预设（Kinfolk / Aman / Wallpaper） ── */
+    const STYLE_PRESETS = {
+      kinfolk: {
+        label: "Kinfolk",
+        color: "米白、燕麦、浅灰、墨绿点缀",
+        photography: "北欧极简人文摄影，自然光，生活感构图",
+        typography: "纤细现代无衬线，大标题+小说明",
+        layout: "生活叙事排版，图文呼吸感，少装饰",
+        lighting: "窗边柔光，清晨或午后侧光",
+        atmosphere: "Kinfolk 克制温暖，生活化旅行叙事",
+      },
+      aman: {
+        label: "Aman",
+        color: "米白、沙色、深棕、低饱和自然色",
+        photography: "奢华度假酒店风，静谧空间感真实摄影",
+        typography: "优雅衬线标题+无衬线正文，字距宽裕",
+        layout: "极简奢华版式，大面积留白，私密感",
+        lighting: "黄昏暖光，室内间接照明",
+        atmosphere: "Aman 隐世奢华，安静留白高级",
+      },
+      wallpaper: {
+        label: "Wallpaper",
+        color: "冷灰、黑白、单点高饱和强调",
+        photography: "建筑空间感摄影，几何构图，设计杂志质感",
+        typography: "现代主义无衬线，粗细标题对比",
+        layout: "前卫结构感排版，网格与留白",
+        lighting: "戏剧性侧光，高对比光影",
+        atmosphere: "Wallpaper 设计杂志，前卫结构感",
+      },
+      blend: {
+        label: "杂志混合",
+        color: "米白纸张、深灰、深蓝、目的地自然色",
+        photography: "高端旅行杂志大片，电影感构图",
+        typography: "现代无衬线中文，左对齐层级清晰",
+        layout: "杂志专题页，主图+分栏，左对齐",
+        lighting: "电影感自然光，黄金或蓝调时刻",
+        atmosphere: "Kinfolk × Aman × Wallpaper 综合气质",
+      },
+    };
+
+    /** ── 风格强度：控制风格浓度 ── */
+    const STYLE_STRENGTH = {
+      light: {
+        label: "轻度",
+        prefix: "轻微",
+        suffix: "风格暗示即可，保持自然真实",
+        detailLevel: 0.6,
+        finalMax: 380,
+      },
+      medium: {
+        label: "中度",
+        prefix: "标准",
+        suffix: "杂志感清晰可辨，平衡信息与美学",
+        detailLevel: 1,
+        finalMax: 520,
+      },
+      heavy: {
+        label: "重度",
+        prefix: "强烈",
+        suffix: "高度风格化，极致杂志美学，材质与光影层次丰富",
+        detailLevel: 1.4,
+        finalMax: 680,
+      },
+    };
+
+    /** ── 平台比例 ── */
+    const PLATFORM_RATIOS = {
+      xhs: { label: "小红书 3:4", aspect: "3 / 4", ratioText: "3:4", platform: "小红书", hint: "竖版信息流长图" },
+      moments: { label: "朋友圈 2:3", aspect: "2 / 3", ratioText: "2:3", platform: "朋友圈", hint: "社交分享竖图" },
+      douyin: { label: "抖音 9:16", aspect: "9 / 16", ratioText: "9:16", platform: "抖音", hint: "全屏竖版封面" },
+      landscape: { label: "横版 16:9", aspect: "16 / 9", ratioText: "16:9", platform: "横版", hint: "Banner / 封面横图" },
+    };
+
+    /** ── 四张卡片类型 ── */
+    const CARDS = [
+      { id: "01", type: "cover", label: "封面图" },
+      { id: "02", type: "detail", label: "详情图" },
+      { id: "03", type: "route", label: "行程图" },
+      { id: "04", type: "emotion", label: "情绪海报" },
+    ];
+
+    const VISUAL_GRADIENTS = {
+      cover: "linear-gradient(155deg, #2c4a6e 0%, #7a9bb8 50%, #f0ebe3 100%)",
+      detail: "linear-gradient(160deg, #5c5048 0%, #b8a088 55%, #f5f0e8 100%)",
+      route: "linear-gradient(165deg, #4a5c4a 0%, #98a898 50%, #ebe8e0 100%)",
+      emotion: "linear-gradient(145deg, #6b4840 0%, #c4907a 45%, #faf6f0 100%)",
+    };
+
     const byId = (id) => document.getElementById(id);
 
-    function generatePrompt() {
-      const destination = byId('destination').value.trim() || '[destination]';
-      const duration = byId('duration').value.trim() || '[duration]';
-      const travelers = byId('travelers').value.trim() || '[traveler type]';
-      const budget = byId('budget').value;
-      const style = byId('style').value;
-      const season = byId('season').value.trim() || '[season/date range]';
-      const mustSee = byId('mustSee').value.trim() || '[interests and must-see places]';
-
-      const prompt = `You are an expert travel planner.
-Create a practical, day-by-day itinerary for a ${duration} trip to ${destination} for ${travelers}.
-
-Constraints and preferences:
-- Budget level: ${budget}
-- Travel style: ${style}
-- Season or dates: ${season}
-- Must-see priorities: ${mustSee}
-
-Please include:
-1) A day-by-day schedule (morning/afternoon/evening) with realistic pacing.
-2) Neighborhood-aware routing to reduce transit time.
-3) Estimated daily budget ranges for food, transport, attractions, and lodging.
-4) Food recommendations (local specialties + one backup option each day).
-5) A rainy-day alternative for each day.
-6) A packing checklist tailored to this trip.
-7) Safety tips and cultural etiquette notes relevant to the destination.
-
-Output in clear markdown tables or bullet sections.`;
-
-      byId('output').textContent = prompt;
+    function getOptions() {
+      return {
+        styleKey: byId("styleSelect").value,
+        ratioKey: byId("ratioSelect").value,
+        strengthKey: byId("strengthSelect").value,
+      };
     }
 
-    byId('generateBtn').addEventListener('click', generatePrompt);
+    function normalize(t) { return t.replace(/\r\n/g, "\n").replace(/\t/g, " ").trim(); }
+    function lines(t) { return normalize(t).split("\n").map((l) => l.trim()).filter(Boolean); }
+    function oneLine(t, max = 120) { return normalize(t).replace(/\s+/g, " ").slice(0, max); }
+    function trimText(t, max) {
+      const s = normalize(t);
+      if (s.length <= max) return s;
+      return s.slice(0, max - 1) + "…";
+    }
 
-    byId('copyBtn').addEventListener('click', async () => {
-      const text = byId('output').textContent;
-      await navigator.clipboard.writeText(text);
-      byId('copyBtn').textContent = 'Copied!';
-      setTimeout(() => { byId('copyBtn').textContent = 'Copy'; }, 1200);
+    function firstMatch(text, patterns) {
+      for (const line of lines(text)) {
+        for (const re of patterns) {
+          if (re.test(line)) return line.replace(/^[\s\-•*·\d.、）)]+/, "").trim();
+        }
+      }
+      return "";
+    }
+
+    function extractBlock(text, keywords, stopRe) {
+      const ls = lines(text);
+      const out = [];
+      let cap = false;
+      for (const line of ls) {
+        if (keywords.some((k) => line.includes(k)) && !cap) { cap = true; out.push(line); continue; }
+        if (cap) {
+          if (stopRe && stopRe.test(line) && out.length > 1) break;
+          out.push(line);
+          if (out.length >= 12) break;
+        }
+      }
+      return out.join("\n");
+    }
+
+    function extractDays(text) {
+      return lines(text).filter((l) => /^(第\s*\d+\s*天|Day\s*\d+|D\d+)/i.test(l)).slice(0, 7);
+    }
+
+    function extractBullets(text) {
+      return lines(text).filter((l) => /^[\-\•\*·✓✔]|^\d+[\.\、]/.test(l));
+    }
+
+    function parseSource(text) {
+      const raw = normalize(text);
+      const title = firstMatch(raw, [/产品名称|线路名称|产品[：:]/, /^【.+】$/, /日游/])
+        ?.replace(/^(产品名称|线路名称|产品)[：:]\s*/i, "")
+        || lines(raw).find((l) => l.length >= 4 && l.length <= 42) || "精选旅行产品";
+      const destM = raw.match(/(?:目的地|前往)[：:\s]*([^\n，,。]{2,24})/);
+      const destination = destM?.[1]?.trim()
+        || (raw.match(/[\u4e00-\u9fa5]{2,12}(?:\/[\u4e00-\u9fa5]{2,12})?/g) || [])
+          .find((c) => /岛|城|湾|山|湖|寺|古镇/.test(c))
+        || "目的地";
+      const dm = raw.match(/(\d+)\s*天\s*(\d+)\s*晚/);
+      const duration = dm ? `${dm[1]}天${dm[2]}晚` : (raw.match(/(\d+)\s*日游/)?.[1] + "日游") || "多日行程";
+      const days = extractDays(raw);
+      const route = extractBlock(raw, ["行程路线", "线路概览", "路线"], /^(第\s*\d+\s*天|费用)/)
+        || (days.length ? days.map((d) => d.replace(/^第\s*\d+\s*天[：:\s]*/i, "")).join(" → ") : `${destination} 经典动线`);
+      const itinerary = days.length ? days.join("\n") : extractBlock(raw, ["每日行程", "行程安排"], /^(费用|酒店)/) || lines(raw).slice(0, 8).join("\n");
+      const selling = extractBlock(raw, ["亮点", "卖点", "特色", "产品优势"], /^(行程|酒店)/)
+        || extractBullets(raw).slice(0, 5).join("\n") || "精选体验 · 深度玩法 · 省心服务";
+      const hotel = extractBlock(raw, ["酒店", "住宿", "下榻"], /^(行程|费用)/)
+        || lines(raw).filter((l) => /酒店|度假村|民宿/.test(l)).slice(0, 4).join("\n") || "精选品质酒店";
+      const emotionSnip = lines(raw).filter((l) => /浪漫|治愈|秘境|慢生活/.test(l)).slice(0, 2);
+      const emotion = emotionSnip.length
+        ? emotionSnip.join("\n") + `\n${destination}：慢节奏、私密感。慢下来，才算真正抵达。`
+        : `${destination}：慢节奏、私密感、真实旅行氛围。`;
+      return { raw, title, destination, duration, route, itinerary, selling, hotel, emotion };
+    }
+
+    /** ── 母版核心：所有卡片共享的视觉 DNA ── */
+    function buildMotherDNA(ctx, options) {
+      const style = STYLE_PRESETS[options.styleKey] || STYLE_PRESETS.blend;
+      const strength = STYLE_STRENGTH[options.strengthKey] || STYLE_STRENGTH.medium;
+      const ratio = PLATFORM_RATIOS[options.ratioKey] || PLATFORM_RATIOS.xhs;
+
+      const applyStrength = (base, stylePart) =>
+        `${strength.prefix}${stylePart}，${PROMPT_CORE.texture}，${strength.suffix}`;
+
+      return {
+        photography: applyStrength(PROMPT_CORE.photographyBase, style.photography),
+        typography: `${PROMPT_CORE.typographyBase}。${style.typography}`,
+        color: `${style.color}。${PROMPT_CORE.aesthetic}色调`,
+        lighting: `${PROMPT_CORE.lightingBase}。${style.lighting}`,
+        atmosphere: `${PROMPT_CORE.atmosphereBase}。${strength.prefix}${style.atmosphere}`,
+        negativePrompt: PROMPT_CORE.negativePrompt(),
+        layoutBase: `${PROMPT_CORE.layoutBase}。${style.layout}`,
+        ratio,
+        strength,
+        style,
+        bodyMax: Math.round(280 * strength.detailLevel),
+        sceneMax: Math.round(100 * strength.detailLevel),
+      };
+    }
+
+    /** ── 卡片内容定义（基于母版组合） ── */
+    const CARD_CONTENT = {
+      cover(ctx) {
+        return {
+          title: ctx.title,
+          subtitle: `${ctx.duration} · ${ctx.destination}`,
+          layoutExtra: "首屏杂志封面感。主标题左上，副标题其下，摄影占 55%，底部留白。",
+          scene: `${ctx.destination}地标或自然风光大片，人物背影或剪影，自然光无滤镜。`,
+          bodyNote: "首屏传达线路气质，不虚构价格。",
+        };
+      },
+      detail(ctx) {
+        return {
+          title: "产品详情",
+          subtitle: ctx.title,
+          layoutExtra: "卖点+酒店+服务纵向分块，细线分隔，右侧留白，适合滑动阅读。",
+          scene: "美食/风景/酒店真实小图拼贴，统一低饱和裁切。",
+          bodyNote: trimText(`【卖点】\n${ctx.selling}\n\n【住宿】\n${ctx.hotel}`, 400),
+        };
+      },
+      route(ctx) {
+        return {
+          title: "行程路线",
+          subtitle: `${ctx.title} · ${ctx.duration}`,
+          layoutExtra: "纵向时间轴/路线图，Day 标签+要点，块间留白。",
+          scene: "简约路线示意+各站真实摄影，站点名深灰小字。",
+          bodyNote: trimText(`${ctx.route}\n\n${ctx.itinerary}`, 400),
+        };
+      },
+      emotion(ctx) {
+        return {
+          title: "旅途情绪",
+          subtitle: "慢下来，才算抵达",
+          layoutExtra: "全屏氛围摄影，文案 1–2 行置左下，其余大量留空。",
+          scene: `${ctx.destination}日落/海面/山野，大面积天空留白，可选单人剪影。`,
+          bodyNote: trimText(ctx.emotion, 260),
+        };
+      },
+    };
+
+    /** ── 组装单张卡片的 Prompt Core 结构 ── */
+    function buildPromptPayload(cardType, ctx, options) {
+      const dna = buildMotherDNA(ctx, options);
+      const content = CARD_CONTENT[cardType](ctx);
+      const ratio = dna.ratio;
+
+      return {
+        title: content.title,
+        subtitle: content.subtitle,
+        layout: trimText(`${dna.layoutBase}。${content.layoutExtra}。平台 ${ratio.platform} ${ratio.ratioText} ${ratio.hint}。`, dna.sceneMax + 80),
+        scene: trimText(content.scene, dna.sceneMax),
+        photography: dna.photography,
+        typography: dna.typography,
+        color: dna.color,
+        lighting: dna.lighting,
+        atmosphere: dna.atmosphere,
+        negativePrompt: dna.negativePrompt,
+        _meta: {
+          cardType,
+          bodyNote: content.bodyNote,
+          platform: ratio.platform,
+          ratio: ratio.ratioText,
+          style: dna.style.label,
+          strength: dna.strength.label,
+        },
+      };
+    }
+
+    function buildHumanReadable(card, payload) {
+      return [
+        `── ${card.id} ${card.label} ──`,
+        `【标题】${payload.title}`,
+        `【副标题】${payload.subtitle}`,
+        `【正文】\n${payload._meta.bodyNote}`,
+        `【版式】${payload.layout}`,
+        `【画面】${payload.scene}`,
+        `【摄影风格】${payload.photography}`,
+        `【字体】${payload.typography}`,
+        `【色彩】${payload.color}`,
+        `【光线】${payload.lighting}`,
+        `【氛围】${payload.atmosphere}`,
+        `【负面限制】${payload.negativePrompt}`,
+        `【平台】${payload._meta.platform} · ${payload._meta.ratio}`,
+      ].join("\n");
+    }
+
+    function buildImage2Prompt(payload, options) {
+      const strength = STYLE_STRENGTH[options.strengthKey];
+      const ratio = PLATFORM_RATIOS[options.ratioKey];
+      const parts = [
+        PROMPT_CORE.aesthetic,
+        PROMPT_CORE.references,
+        `${ratio.platform} ${ratio.ratioText} ${ratio.hint}。`,
+        `${payload._meta.style}风格，${payload._meta.strength}浓度。`,
+        `标题：${oneLine(payload.title, 36)}`,
+        `副标题：${oneLine(payload.subtitle, 40)}`,
+        `版式：${oneLine(payload.layout, 70)}`,
+        `画面：${oneLine(payload.scene, 80)}`,
+        `摄影：${oneLine(payload.photography, 60)}`,
+        `色彩：${oneLine(payload.color, 40)}`,
+        `光线：${oneLine(payload.lighting, 30)}`,
+        `氛围：${oneLine(payload.atmosphere, 40)}`,
+        payload.negativePrompt,
+      ];
+      let text = parts.join(" ").replace(/\s{2,}/g, " ").trim();
+      if (text.length > strength.finalMax) text = text.slice(0, strength.finalMax - 1) + "…";
+      return text;
+    }
+
+    function buildJsonPayload(card, payload, image2) {
+      const { _meta, ...core } = payload;
+      return {
+        id: card.id,
+        cardType: card.type,
+        cardLabel: card.label,
+        ...core,
+        finalPrompt: image2,
+        promptCore: PROMPT_CORE.toObject(),
+        meta: {
+          platform: _meta.platform,
+          ratio: _meta.ratio,
+          style: _meta.style,
+          strength: _meta.strength,
+        },
+      };
+    }
+
+    function buildAllCards(ctx, options) {
+      return CARDS.map((card) => {
+        const payload = buildPromptPayload(card.type, ctx, options);
+        const humanReadable = buildHumanReadable(card, payload);
+        const image2Prompt = buildImage2Prompt(payload, options);
+        const jsonPayload = buildJsonPayload(card, payload, image2Prompt);
+        return { card, payload, humanReadable, image2Prompt, jsonPayload };
+      });
+    }
+
+    function exportAll(modules, options) {
+      return {
+        version: "5.0",
+        generatedAt: new Date().toISOString(),
+        promptCore: PROMPT_CORE.toObject(),
+        options: {
+          style: STYLE_PRESETS[options.styleKey].label,
+          styleKey: options.styleKey,
+          ratio: PLATFORM_RATIOS[options.ratioKey].label,
+          ratioKey: options.ratioKey,
+          strength: STYLE_STRENGTH[options.strengthKey].label,
+          strengthKey: options.strengthKey,
+        },
+        cards: modules.map((m) => m.jsonPayload),
+      };
+    }
+
+    /* ── UI ── */
+    function copyText(text, btn, label = "复制") {
+      navigator.clipboard.writeText(text).then(
+        () => {
+          if (btn) { btn.textContent = "已复制"; btn.classList.add("done"); setTimeout(() => { btn.textContent = label; btn.classList.remove("done"); }, 1400); }
+        },
+        () => { if (btn) btn.textContent = "失败"; }
+      );
+    }
+
+    function renderCoreChips() {
+      const chips = [PROMPT_CORE.aesthetic, PROMPT_CORE.references, PROMPT_CORE.texture, "真实摄影", "低饱和", "左对齐", "大量留白"];
+      byId("coreChips").innerHTML = chips.map((c) => `<span>${c}</span>`).join("");
+    }
+
+    function createPromptCard(item, ratioKey) {
+      const { card, payload, humanReadable, image2Prompt, jsonPayload } = item;
+      const ratio = PLATFORM_RATIOS[ratioKey];
+      const el = document.createElement("article");
+      el.className = "prompt-card";
+
+      const visual = document.createElement("div");
+      visual.className = "card-visual";
+      visual.style.aspectRatio = ratio.aspect;
+      visual.style.background = VISUAL_GRADIENTS[card.type];
+      visual.innerHTML = `
+        <div class="card-visual-inner">
+          <div class="card-badge">${card.id} · ${card.label} · ${ratio.label}</div>
+          <div class="card-title"></div>
+          <div class="card-sub"></div>
+          <div class="card-scene-preview"></div>
+        </div>
+      `;
+      visual.querySelector(".card-title").textContent = payload.title;
+      visual.querySelector(".card-sub").textContent = payload.subtitle;
+      visual.querySelector(".card-scene-preview").textContent = payload.scene;
+
+      const body = document.createElement("div");
+      body.className = "card-body";
+
+      const tabs = document.createElement("div");
+      tabs.className = "output-tabs";
+      tabs.innerHTML = `
+        <button type="button" class="tab-btn active" data-tab="human">可读 Prompt</button>
+        <button type="button" class="tab-btn" data-tab="image2">image2 Prompt</button>
+        <button type="button" class="tab-btn" data-tab="json">JSON</button>
+      `;
+
+      const paneHuman = document.createElement("div");
+      paneHuman.className = "output-pane active";
+      paneHuman.dataset.tab = "human";
+      paneHuman.textContent = humanReadable;
+
+      const paneImage2 = document.createElement("div");
+      paneImage2.className = "output-pane";
+      paneImage2.dataset.tab = "image2";
+      paneImage2.textContent = image2Prompt;
+
+      const paneJson = document.createElement("div");
+      paneJson.className = "output-pane json-pane";
+      paneJson.dataset.tab = "json";
+      paneJson.textContent = JSON.stringify(jsonPayload, null, 2);
+
+      tabs.querySelectorAll(".tab-btn").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          tabs.querySelectorAll(".tab-btn").forEach((b) => b.classList.remove("active"));
+          body.querySelectorAll(".output-pane").forEach((p) => p.classList.remove("active"));
+          btn.classList.add("active");
+          body.querySelector(`.output-pane[data-tab="${btn.dataset.tab}"]`).classList.add("active");
+        });
+      });
+
+      const actions = document.createElement("div");
+      actions.className = "card-actions";
+      const btns = [
+        ["复制可读", humanReadable],
+        ["复制 image2", image2Prompt],
+        ["复制 JSON", JSON.stringify(jsonPayload, null, 2)],
+      ];
+      btns.forEach(([label, text]) => {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = "btn-sm" + (label.includes("image2") ? " primary" : "");
+        b.textContent = label;
+        b.addEventListener("click", () => copyText(text, b, label));
+        actions.appendChild(b);
+      });
+
+      body.append(tabs, paneHuman, paneImage2, paneJson, actions);
+      el.append(visual, body);
+      return el;
+    }
+
+    function renderCards(modules, options, save = true) {
+      byId("placeholder").style.display = "none";
+      byId("output").classList.add("visible");
+
+      const style = STYLE_PRESETS[options.styleKey];
+      const ratio = PLATFORM_RATIOS[options.ratioKey];
+      const strength = STYLE_STRENGTH[options.strengthKey];
+      byId("outputMeta").textContent =
+        `${style.label} · ${ratio.label} · ${strength.label} · 母版自动组合`;
+
+      const grid = byId("cardGrid");
+      grid.innerHTML = "";
+      modules.forEach((m) => grid.appendChild(createPromptCard(m, options.ratioKey)));
+
+      const allHuman = modules.map((m) => m.humanReadable).join("\n\n══════════════════\n\n");
+      const allJson = JSON.stringify(exportAll(modules, options), null, 2);
+      byId("copyAllBtn").onclick = () => copyText(allHuman, byId("copyAllBtn"), "复制全部可读");
+      byId("copyAllJsonBtn").onclick = () => copyText(allJson, byId("copyAllJsonBtn"), "复制全部 JSON");
+
+      if (save) {
+        saveHistory({
+          id: Date.now(),
+          date: new Date().toLocaleString("zh-CN", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }),
+          title: modules[0]?.payload?.title || "未命名",
+          style: style.label,
+          ratio: ratio.label,
+          strength: strength.label,
+          styleKey: options.styleKey,
+          ratioKey: options.ratioKey,
+          strengthKey: options.strengthKey,
+          source: byId("sourceText").value.slice(0, 400),
+          modules,
+        });
+      }
+    }
+
+    function saveHistory(entry) {
+      try {
+        const list = JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]");
+        list.unshift(entry);
+        while (list.length > HISTORY_MAX) list.pop();
+        localStorage.setItem(HISTORY_KEY, JSON.stringify(list));
+      } catch (_) {}
+      renderHistory();
+    }
+
+    function renderHistory() {
+      const el = byId("historyList");
+      let list = [];
+      try { list = JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]"); } catch (_) {}
+      if (!list.length) { el.innerHTML = '<p class="history-empty">生成后自动保存</p>'; return; }
+      el.innerHTML = "";
+      list.forEach((item) => {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "history-item";
+        btn.innerHTML = `<span class="hi-title">${esc(item.title)}</span><span class="hi-meta">${esc(item.date)} · ${esc(item.style)} · ${esc(item.strength)}</span>`;
+        btn.addEventListener("click", () => {
+          byId("sourceText").value = item.source || "";
+          byId("styleSelect").value = item.styleKey || "blend";
+          byId("ratioSelect").value = item.ratioKey || "xhs";
+          byId("strengthSelect").value = item.strengthKey || "medium";
+          if (item.modules) renderCards(item.modules, { styleKey: item.styleKey, ratioKey: item.ratioKey, strengthKey: item.strengthKey }, false);
+        });
+        el.appendChild(btn);
+      });
+    }
+
+    function esc(s) { const d = document.createElement("div"); d.textContent = s; return d.innerHTML; }
+
+    function generate() {
+      const text = byId("sourceText").value;
+      const tip = byId("emptyTip");
+      if (!normalize(text)) { tip.classList.add("show"); return; }
+      tip.classList.remove("show");
+      const options = getOptions();
+      renderCards(buildAllCards(parseSource(text), options), options, true);
+    }
+
+    byId("generateBtn").addEventListener("click", generate);
+    byId("clearBtn").addEventListener("click", () => {
+      byId("sourceText").value = "";
+      byId("emptyTip").classList.remove("show");
+      byId("output").classList.remove("visible");
+      byId("cardGrid").innerHTML = "";
+      byId("placeholder").style.display = "flex";
     });
 
-    byId('clearBtn').addEventListener('click', () => {
-      ['destination', 'duration', 'travelers', 'season', 'mustSee'].forEach((id) => byId(id).value = '');
-      byId('budget').value = 'Mid-range';
-      byId('style').value = 'Cultural';
-      byId('output').textContent = 'Your generated prompt will appear here.';
-    });
+    renderCoreChips();
+    renderHistory();
   </script>
 </body>
 </html>
